@@ -1,0 +1,42 @@
+﻿#pragma kernel CSParticle
+
+#include "SimplexNoiseGrad3D.cginc"
+#include "Common.cginc"
+
+ // Particle's data
+struct Particle
+{
+	float3 position;
+	float3 velocity;
+};
+
+// Particle's data, shared with the shader
+RWStructuredBuffer<Particle> particleBuffer;
+
+// Variables set from the CPU
+float deltaTime;
+float Time;
+float4 noiseParameters;
+
+[numthreads(256, 1, 1)]
+void CSParticle(uint3 id : SV_DispatchThreadID)
+{
+	float3  pos = particleBuffer[id.x].position;
+
+	pos += particleBuffer[id.x].velocity * deltaTime;
+
+	particleBuffer[id.x].position = frac(pos);
+
+	if (particleBuffer[id.x].velocity.x  == 0.0)
+	{
+		float f0 = nrand(particleBuffer[id.x].position.xy, 0);
+		float f1 = nrand(particleBuffer[id.x].position.yz, 0);
+		float f2 = nrand(particleBuffer[id.x].position.zx, 0);
+		float3 normalF3 = (float3(f0, f1, f2));
+
+		particleBuffer[id.x].position = float3(normalF3.x, normalF3.y, normalF3.z);
+		
+		particleBuffer[id.x].velocity = random_on_sphere( float2(frac(id.x / 100 ) , id.x % 10.0));
+	}
+
+}

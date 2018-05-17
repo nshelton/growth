@@ -1,0 +1,77 @@
+﻿#pragma kernel Initialize
+#pragma kernel Advance
+#pragma kernel Deposit
+
+#include "distanceFunction.cginc"
+
+// Particle's data
+struct Particle
+{
+	float3 position;
+	float3 velocity;
+};
+
+Texture3D<float4> _gridIn;
+RWTexture3D<float4> _gridOut;
+
+int _gridSize;
+float _param;
+
+float SampleData(int3 pos) {
+	return _gridIn.Load(int4(pos, 0)).x;
+}
+
+[numthreads(8, 8, 8)]
+void Initialize(uint3 threadId : SV_DispatchThreadID)
+{
+    float3 p = (float3)threadId / (float)_gridSize - 0.5;
+
+    float value =   0;
+
+    if( (int)threadId.x == _gridSize/2.0
+         && (int)threadId.y == _gridSize/2.0
+         && (int)threadId.z == _gridSize/2.0)
+        value = 1.0;
+
+    _gridOut[threadId] = float4(value, 0, 0, 0);
+}
+
+[numthreads(8, 8, 8)]
+void Advance(uint3 threadId : SV_DispatchThreadID)
+{
+    float value = SampleData(threadId);
+    _gridOut[threadId] = float4(value, 0, 0, 0);
+}
+
+RWStructuredBuffer<Particle> _particleBuffer;
+
+
+[numthreads(256, 1, 1)]
+void Deposit(uint3 threadId : SV_DispatchThreadID)
+{
+    
+    float3 pos = _particleBuffer[threadId.x].position;
+
+    int3 dst = pos * _gridSize;
+    
+    int neighbors = 0;
+
+    for ( int dx = -1; dx < 2; dx++)
+        for ( int dy = -1; dy < 2; dy++)
+            for ( int dz = -1; dz < 2; dz++)
+                if ( !(dx == 0 && dy == 0 && dz == 0))
+                    if (SampleData(dst + int3(dx, dy, dz)) > 0)
+                        neighbors ++;
+
+    
+    float currentValue = SampleData(dst);
+
+
+    if ( neighbors > _param || currentValue == 1 )
+    {
+        _gridOut[dst] = float4(1.0, 0, 0, 0);
+        _particleBuffer[threadId.x].velocity = (float3)0;
+    }
+
+}
+
