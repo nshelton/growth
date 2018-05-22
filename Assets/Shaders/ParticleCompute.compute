@@ -23,7 +23,16 @@ void CSParticle(uint3 id : SV_DispatchThreadID)
 {
 	float3  pos = particleBuffer[id.x].position;
 
+	float3 np = pos * 3.0;
+
+	float3 n1 = snoise_grad(np);
+	float3 n2 = snoise_grad(np + float3(0, 13.28, 0));
+
+	particleBuffer[id.x].velocity += cross(n1, n2) * 0.2 * deltaTime;
+
+
 	pos += particleBuffer[id.x].velocity * deltaTime;
+
 
 	particleBuffer[id.x].position = frac(pos);
 

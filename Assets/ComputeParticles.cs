@@ -58,9 +58,7 @@ public class ComputeParticles : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
-
         InitComputeShader();
-
     }
 
     void InitComputeShader()
@@ -72,13 +70,11 @@ public class ComputeParticles : MonoBehaviour {
 
         for (int i = 0; i < particleCount; i++)
         {
-
             particleArray[i].position.x = Random.value;
             particleArray[i].position.y = Random.value;
             particleArray[i].position.z = Random.value;
 
             particleArray[i].velocity = Random.onUnitSphere * 0.1f;
-
         }
 
         // create compute buffer

@@ -32,7 +32,11 @@ public class MarchingCubes : MonoBehaviour
     {
         m_resolution = res;
         kernelMC = MarchingCubesCS.FindKernel("MarchingCubes");
-        appendVertexBuffer = new ComputeBuffer((m_resolution - 1) * (m_resolution - 1) * (m_resolution - 1) * 5, sizeof(float) * 18, ComputeBufferType.Append);
+
+        appendVertexBuffer = new ComputeBuffer(
+            (m_resolution - 1) * (m_resolution - 1) * (m_resolution - 1) * 5, sizeof(float) * 6, 
+            ComputeBufferType.Append);
+
         argBuffer = new ComputeBuffer(4, sizeof(int), ComputeBufferType.IndirectArguments);
 
         MarchingCubesCS.SetInt("_gridSize", m_resolution);

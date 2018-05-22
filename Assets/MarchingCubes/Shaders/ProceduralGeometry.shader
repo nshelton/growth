@@ -1,5 +1,5 @@
 ﻿Shader "PavelKouril/Marching Cubes/Procedural Geometry"
-{
+{	
 	Properties
     {
         _WireframeColor("Wireframe", Range(0, 1)) = 0
@@ -29,7 +29,6 @@
 			{
 				float3 vPosition;
 				float3 vNormal;
-				float3 vColor;
 			};
 
 			struct Triangle
@@ -44,7 +43,6 @@
 			{
 				float4 vertex : SV_POSITION;
 				float3 normal : NORMAL;
-				float3 color : COLOR;
 				float3 triID : TANGENT;
 			};
 
@@ -56,7 +54,6 @@
 				v2f o;
 				o.vertex = mul(UNITY_MATRIX_VP, mul(model, float4(triangles[pid].v[vid].vPosition, 1)));
 				o.normal = mul(unity_ObjectToWorld, triangles[pid].v[vid].vNormal);
-				o.color = triangles[pid].v[vid].vColor;
 				o.triID = float3(vid == 0 ? 1 : 0, vid == 1 ? 1 : 0, vid == 2 ? 1 : 0);
 
 				return o;
@@ -80,7 +77,7 @@
 				
 
 
-				float3 result = 	(i.color + (1.0 - i.color) * (1.0 - _AO)) *
+				float3 result = 	(1.0 - _AO) *
 									(phongShade + (1.0 - phongShade) * (1.0 - _PhongShade)) * 
 									(abs(i.normal) + (1.0 - abs(i.normal)) * (1.0 - _NormalColor));
 

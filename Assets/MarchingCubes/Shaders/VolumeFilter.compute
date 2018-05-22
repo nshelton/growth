@@ -24,9 +24,7 @@ float SampleData(int3 pos) {
 [numthreads(8, 8, 8)]
 void Initialize(uint3 threadId : SV_DispatchThreadID)
 {
-    float3 p = (float3)threadId / (float)_gridSize - 0.5;
-
-    float value =   0;
+    float value = 0;
 
     if( (int)threadId.x == _gridSize/2.0
          && (int)threadId.y == _gridSize/2.0
@@ -44,7 +42,6 @@ void Advance(uint3 threadId : SV_DispatchThreadID)
 }
 
 RWStructuredBuffer<Particle> _particleBuffer;
-
 
 [numthreads(256, 1, 1)]
 void Deposit(uint3 threadId : SV_DispatchThreadID)

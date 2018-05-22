@@ -18,7 +18,6 @@ struct Vertex
 {
 	float3 vPosition;
 	float3 vNormal;
-	float3 vColor;
 };
 
 struct Triangle
@@ -27,6 +26,9 @@ struct Triangle
 };
 
 AppendStructuredBuffer<Triangle> triangleRW;
+
+// RWStructuredBuffer<float4> PositionBuffer;
+// RWStructuredBuffer<float4> NormalBuffer;
 
 SamplerState myLinearClampSampler;
 
@@ -454,10 +456,6 @@ void MarchingCubes(uint3 threadId : SV_DispatchThreadID)
 			v0.vNormal = normalize(CalculateGradient(v0.vPosition));
 			v1.vNormal = normalize(CalculateGradient(v1.vPosition));
 			v2.vNormal = normalize(CalculateGradient(v2.vPosition));
-
-			v0.vColor = (float3)1;
-			v1.vColor = (float3)1;
-			v2.vColor = (float3)1;
 
 			t.v[0] = v0;
 			t.v[1] = v1;
