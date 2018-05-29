@@ -17,26 +17,25 @@ RWStructuredBuffer<Particle> particleBuffer;
 float deltaTime;
 float Time;
 float4 noiseParameters;
+float4 acceleration;
 
 [numthreads(256, 1, 1)]
 void CSParticle(uint3 id : SV_DispatchThreadID)
 {
-	float3  pos = particleBuffer[id.x].position;
+	float3 pos = particleBuffer[id.x].position;
 
-	float3 np = pos * 3.0;
+	float3 np = (pos - 0.5) * noiseParameters.y + Time * noiseParameters.z;
+	// float3 np = (pos + 0.1 *Time) * 3.0;
 
 	float3 n1 = snoise_grad(np);
 	float3 n2 = snoise_grad(np + float3(0, 13.28, 0));
 
-	particleBuffer[id.x].velocity += cross(n1, n2) * 0.2 * deltaTime;
-
+	particleBuffer[id.x].velocity += snoise_grad(np) * noiseParameters.x;
 
 	pos += particleBuffer[id.x].velocity * deltaTime;
-
-
 	particleBuffer[id.x].position = frac(pos);
 
-	if (particleBuffer[id.x].velocity.x  == 0.0)
+	if (particleBuffer[id.x].velocity.x  == 0.0 )
 	{
 		float f0 = nrand(particleBuffer[id.x].position.xy, 0);
 		float f1 = nrand(particleBuffer[id.x].position.yz, 0);
@@ -45,7 +44,7 @@ void CSParticle(uint3 id : SV_DispatchThreadID)
 
 		particleBuffer[id.x].position = float3(normalF3.x, normalF3.y, normalF3.z);
 		
-		particleBuffer[id.x].velocity = random_on_sphere( float2(frac(id.x / 100 ) , id.x % 10.0));
+		particleBuffer[id.x].velocity = acceleration.xyz;
 	}
 
 }

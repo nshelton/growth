@@ -1,8 +1,10 @@
 ﻿#pragma kernel Initialize
 #pragma kernel Advance
 #pragma kernel Deposit
+#pragma kernel Blur
+#pragma kernel CurveGrowth
 
-#include "distanceFunction.cginc"
+#include "SimplexNoiseGrad3D.cginc"
 
 // Particle's data
 struct Particle
@@ -16,6 +18,9 @@ RWTexture3D<float4> _gridOut;
 
 int _gridSize;
 float _param;
+float Time;
+float  _filterParam;
+float  _diffuseAmount;
 
 float SampleData(int3 pos) {
 	return _gridIn.Load(int4(pos, 0)).x;
@@ -27,7 +32,7 @@ void Initialize(uint3 threadId : SV_DispatchThreadID)
     float value = 0;
 
     if( (int)threadId.x == _gridSize/2.0
-         && (int)threadId.y == _gridSize/2.0
+         && (int)threadId.y == 0
          && (int)threadId.z == _gridSize/2.0)
         value = 1.0;
 
@@ -41,6 +46,50 @@ void Advance(uint3 threadId : SV_DispatchThreadID)
     _gridOut[threadId] = float4(value, 0, 0, 0);
 }
 
+[numthreads(8, 8, 8)]
+void Blur(uint3 threadId : SV_DispatchThreadID)
+{
+    int3 delta = int3 (0,0,1);
+
+    if ( _filterParam == 1)
+        delta = int3(0,1,0);
+
+    if ( _filterParam == 2)
+        delta = int3(1,0,0);
+
+    float result = 
+        _diffuseAmount * SampleData(threadId + delta * 1) + 
+        (1.0 - 2 * _diffuseAmount) * SampleData(threadId + delta * 0) + 
+        _diffuseAmount * SampleData(threadId - delta * 1);
+
+
+    _gridOut[threadId] = float4(result, 0, 0, 0);
+}
+
+
+[numthreads(8, 8, 8)]
+void CurveGrowth(uint3 threadId : SV_DispatchThreadID)
+{
+    
+    float3 gradient = float3(
+        SampleData(threadId - int3(1,0,0)) - SampleData(threadId + int3(1,0,0)),
+        SampleData(threadId - int3(0,1,0)) - SampleData(threadId + int3(0,1,0)),
+        SampleData(threadId - int3(0,0,1)) - SampleData(threadId + int3(0,0,1)));
+
+    float result = 0.0;
+    float3 pos = float3((float)threadId.x, (float) threadId.y, (float)threadId.z) / (float) _gridSize;
+
+	float3 np = (pos + 0.1 *Time) * 3.0;
+
+	float3 n1 = snoise_grad(np);
+    gradient += n1 * 0.1 ;
+
+    if ( SampleData(threadId - gradient) > _param )
+        result = 0.1;
+
+    _gridOut[threadId] = float4(SampleData(threadId) + result, 0, 0, 0);
+}
+
 RWStructuredBuffer<Particle> _particleBuffer;
 
 [numthreads(256, 1, 1)]
@@ -51,24 +100,18 @@ void Deposit(uint3 threadId : SV_DispatchThreadID)
 
     int3 dst = pos * _gridSize;
     
-    int neighbors = 0;
+    float neighborDensity = 0;
 
     for ( int dx = -1; dx < 2; dx++)
         for ( int dy = -1; dy < 2; dy++)
             for ( int dz = -1; dz < 2; dz++)
-                if ( !(dx == 0 && dy == 0 && dz == 0))
-                    if (SampleData(dst + int3(dx, dy, dz)) > 0)
-                        neighbors ++;
-
-    
-    float currentValue = SampleData(dst);
+                neighborDensity += SampleData(dst + int3(dx, dy, dz));
 
 
-    if ( neighbors > _param || currentValue == 1 )
+    if ( neighborDensity > _param )
     {
         _gridOut[dst] = float4(1.0, 0, 0, 0);
         _particleBuffer[threadId.x].velocity = (float3)0;
     }
 
 }
-

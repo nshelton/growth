@@ -18,19 +18,19 @@ public class ObjExporterScript
 	}
  
  
- 	public static string MeshToString(MarchingCubes.Mesh mesh) 
+ 	public static string MeshToString(Mesh mesh) 
 	{	
 		int numVertices = 0;
  
 		StringBuilder sb = new StringBuilder();
  
-		foreach(Vector3 v in mesh.verts)
+		foreach(Vector3 v in mesh.vertices)
 		{
 			numVertices++;
 			sb.Append(string.Format("v {0} {1} {2}\n",v.x,v.y,v.z));
 		}
 
-		int[] triangles = mesh.faces;
+		int[] triangles = mesh.GetIndices(0);
 
 		for (int i=0;i<triangles.Length;i+=3) {
 			sb.Append(string.Format("f {0}/{0}/{0} {1}/{1}/{1} {2}/{2}/{2}\n", 
@@ -162,11 +162,9 @@ public class ObjExporter : ScriptableObject
 			meshString.Append("g ").Append(t.name).Append("\n");
 		}
  
-		MeshFilter mf = t.GetComponent<MeshFilter>();
-		if (mf)
-		{
-			meshString.Append(ObjExporterScript.MeshToString(mf, t));
-		}
+		Mesh mf = t.GetComponent<MarchingCubes>().ExportMesh();
+
+		meshString.Append(ObjExporterScript.MeshToString(mf));
  
 		for(int i = 0; i < t.childCount; i++)
 		{

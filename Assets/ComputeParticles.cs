@@ -4,7 +4,8 @@ using UnityEngine;
 
 //script from https://gist.github.com/ya7gisa0/742bf24d5edf1e73b971e14a2553ad4e
 
-public class ComputeParticles : MonoBehaviour {
+public class ComputeParticles : MonoBehaviour
+{
 
     private Vector2 cursorPos;
 
@@ -15,49 +16,35 @@ public class ComputeParticles : MonoBehaviour {
         public Vector3 velocity;
     }
 
-    private const int SIZE_PARTICLE = 24; // since property "life" is added...
+    private const int SIZE_PARTICLE = 24; 
 
-    /// <summary>
-    /// Number of Particle created in the system.
-    /// </summary>
-    private int particleCount = 1000000;
+    public bool m_render = false;
+    public int particleCount = 1000000;
 
-    /// <summary>
-    /// Material used to draw the Particle on screen.
-    /// </summary>
+    public Vector3  m_acceleration;
+    public float  m_noiseAmp;
+    public float  m_noiseFreq;
+    public float  m_noiseScroll;
+
     public Material material;
 
-    /// <summary>
-    /// Compute shader used to update the Particles.
-    /// </summary>
     public ComputeShader computeShader;
 
-    /// <summary>
-    /// Id of the kernel used.
-    /// </summary>
     private int mComputeShaderKernelID;
 
-    /// <summary>
-    /// Buffer holding the Particles.
-    /// </summary>
     public ComputeBuffer particleBuffer;
 
 
 
-    /// <summary>
-    /// Number of particle per warp.
-    /// </summary>
     private const int WARP_SIZE = 256; // TODO?
 
-    /// <summary>
-    /// Number of warp needed.
-    /// </summary>
     public int mWarpCount; // TODO?
 
     //public ComputeShader shader;
 
-	// Use this for initialization
-	void Start () {
+    // Use this for initialization
+    void Start()
+    {
         InitComputeShader();
     }
 
@@ -92,8 +79,11 @@ public class ComputeParticles : MonoBehaviour {
 
     void OnRenderObject()
     {
-        // material.SetPass(0);
-        // Graphics.DrawProcedural(MeshTopology.Points, 1, particleCount);
+        if (m_render)
+        {
+            material.SetPass(0);
+            Graphics.DrawProcedural(MeshTopology.Points, 1, particleCount);
+        }
     }
 
     void OnDestroy()
@@ -103,11 +93,14 @@ public class ComputeParticles : MonoBehaviour {
     }
 
     // Update is called once per frame
-    void Update () {
+    void Update()
+    {
 
         // Send datas to the compute shader
         computeShader.SetFloat("deltaTime", Time.deltaTime);
         computeShader.SetFloat("Time", Time.time);
+        computeShader.SetVector("acceleration", m_acceleration);
+        computeShader.SetVector("noiseParameters", new Vector4(m_noiseAmp, m_noiseFreq, m_noiseScroll));
 
         // Update the Particles
         computeShader.Dispatch(mComputeShaderKernelID, mWarpCount, 1, 1);

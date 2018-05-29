@@ -211,8 +211,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_marchingCubes: {fileID: 933115774}
   m_particles: {fileID: 933115775}
-  m_resolution: 300
-  m_param: 1.75
+  m_resolution: 256
+  m_param: 3.93
   GeneratorCS: {fileID: 7200000, guid: 0ef358a49aae2244f9dda2595f2e638b, type: 3}
 --- !u!114 &933115774
 MonoBehaviour:
@@ -227,6 +227,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_isoLevel: 0.908
   mat: {fileID: 2100000, guid: ed01858106db78640b20853a00c1ce0b, type: 2}
+  surfaceMat: {fileID: 2100000, guid: 073bc062ce8ad3f4da3365dc80404063, type: 2}
   MarchingCubesCS: {fileID: 7200000, guid: aeeddc2d1d29a1746a2b82330515090e, type: 3}
 --- !u!114 &933115775
 MonoBehaviour:
@@ -239,6 +240,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3fc8c75d0ea81bc47add090ad0c67d14, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_render: 0
+  particleCount: 100000
   material: {fileID: 2100000, guid: 3a46b6266c87adb49a141b3c4adcf492, type: 2}
   computeShader: {fileID: 7200000, guid: 9640359b273d8d2499e04ee97a758fd6, type: 3}
   mWarpCount: 0

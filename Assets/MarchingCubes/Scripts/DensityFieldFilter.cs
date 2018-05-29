@@ -14,20 +14,23 @@ public class DensityFieldFilter : MonoBehaviour
     [SerializeField]
     public ComputeParticles m_particles;
     
-
     public int m_resolution;
 
     [SerializeField, Range(0,15)]
     public float m_param;
 
+    [SerializeField, Range(0,0.5f)]
+    public float m_diffuseAmount;
+    
     public ComputeShader GeneratorCS;
     private int initKernel;
     private int advanceKernel;
     private int depositKernel;
+    private int blurKernel;
+    private int curveGrowth;
 
     private RenderTexture sourceTexture;
     private RenderTexture destTexture;
-
 
 
     RenderTexture CreateTexture()
@@ -52,6 +55,8 @@ public class DensityFieldFilter : MonoBehaviour
         initKernel = GeneratorCS.FindKernel("Initialize");
         advanceKernel = GeneratorCS.FindKernel("Advance");
         depositKernel = GeneratorCS.FindKernel("Deposit");
+        blurKernel = GeneratorCS.FindKernel("Blur");
+        curveGrowth = GeneratorCS.FindKernel("CurveGrowth");
 
         GeneratorCS.SetInt("_gridSize", m_resolution);
 
@@ -62,6 +67,7 @@ public class DensityFieldFilter : MonoBehaviour
 
     public void InitField()
     {
+        SwapBuffers();
         RunKernel(initKernel);
     }
 
@@ -74,25 +80,38 @@ public class DensityFieldFilter : MonoBehaviour
 
     private void Update()
     {
+
         SwapBuffers();
 
-        RunKernel(advanceKernel);
+        GeneratorCS.SetFloat("_diffuseAmount", m_diffuseAmount);
+        
+        GeneratorCS.SetFloat("_filterParam", 0);
+        RunKernel(blurKernel);
+        SwapBuffers();
+    
+        GeneratorCS.SetFloat("_filterParam", 1);
+        RunKernel(blurKernel);
+        SwapBuffers();
+    
+        GeneratorCS.SetFloat("_filterParam", 2);
+        RunKernel(blurKernel);
+        SwapBuffers();
+
+
+        // RunKernel(curveGrowth);
+        
+
+
         m_marchingCubes.RunMarchingCubes(destTexture);
 
         RunKernel(depositKernel);
-    }
 
-    private void OnRenderObject()
-    {
-        m_marchingCubes.RenderProcedural();
     }
 
     void RunKernel(int kernelName)
     {
         GeneratorCS.SetFloat("_param", m_param);
-
         GeneratorCS.SetFloat("_Time", Time.time);
-
         GeneratorCS.SetTexture(kernelName, "_gridIn", sourceTexture);
         GeneratorCS.SetTexture(kernelName, "_gridOut", destTexture);
 
@@ -102,17 +121,15 @@ public class DensityFieldFilter : MonoBehaviour
         {
             GeneratorCS.SetBuffer(kernelName, "_particleBuffer", m_particles.particleBuffer);
             GeneratorCS.Dispatch(kernelName, m_particles.mWarpCount, 1, 1);
-
         }
         else
         {
             GeneratorCS.Dispatch(kernelName, m_resolution / 8, m_resolution / 8, m_resolution / 8);
         }
+        
         RenderTexture.active = null;
     }
 }
-
-
 
 [CustomEditor(typeof(DensityFieldFilter))]
 public class DensityFieldFilterEditor : Editor

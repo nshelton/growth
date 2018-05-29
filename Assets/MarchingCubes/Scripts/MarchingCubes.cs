@@ -1,40 +1,39 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEditor;
 
-
-// from https://github.com/pavelkouril/unity-marching-cubes-gpu
-
+// based on https://github.com/pavelkouril/unity-marching-cubes-gpu
 
 public class MarchingCubes : MonoBehaviour
 {
 
-    public struct Mesh
-    {
-        public Vector3[] verts;
-        public int[] faces;
-    }
-
     [SerializeField, Range(0, 1)]
     public float m_isoLevel = 0.5f;
 
-    public Material mat;
-    public ComputeShader MarchingCubesCS;
+    [SerializeField]
+    private MeshFilter m_meshFilter;
 
+    public Material mat;
+    public Material surfaceMat;
+    public ComputeShader MarchingCubesCS;
     private int kernelMC;
 
     private ComputeBuffer appendVertexBuffer;
     private ComputeBuffer argBuffer;
-
-
+    private Mesh m_mesh;
+    private const int NUM_TRIS = 3000000;
+    private int trisToDraw;
     private int m_resolution;
+
+
     public void Init(int res)
     {
         m_resolution = res;
         kernelMC = MarchingCubesCS.FindKernel("MarchingCubes");
 
         appendVertexBuffer = new ComputeBuffer(
-            (m_resolution - 1) * (m_resolution - 1) * (m_resolution - 1) * 5, sizeof(float) * 6, 
+            (m_resolution - 1) * (m_resolution - 1) * (m_resolution - 1) * 5, sizeof(float) * 6,
             ComputeBufferType.Append);
 
         argBuffer = new ComputeBuffer(4, sizeof(int), ComputeBufferType.IndirectArguments);
@@ -43,6 +42,12 @@ public class MarchingCubes : MonoBehaviour
         MarchingCubesCS.SetFloat("_isoLevel", m_isoLevel);
 
         MarchingCubesCS.SetBuffer(kernelMC, "triangleRW", appendVertexBuffer);
+
+        surfaceMat.SetBuffer("_TriangleBuffer", appendVertexBuffer);
+
+        MakeDummyMesh();
+
+        m_meshFilter.mesh = m_mesh;
     }
 
     public void RunMarchingCubes(RenderTexture texture)
@@ -58,17 +63,32 @@ public class MarchingCubes : MonoBehaviour
         ComputeBuffer.CopyCount(appendVertexBuffer, argBuffer, 0);
 
         argBuffer.GetData(args);
+        trisToDraw = args[0];
         args[0] *= 3;
         argBuffer.SetData(args);
 
+        Debug.LogFormat("Meshed {0} verts, {1} tris", args[0], args[0] / 3);
     }
-
-    public void RenderProcedural()
+    
+    void MakeDummyMesh()
     {
-        mat.SetPass(0);
-        mat.SetBuffer("triangles", appendVertexBuffer);
-        mat.SetMatrix("model", transform.localToWorldMatrix);
-        Graphics.DrawProceduralIndirect(MeshTopology.Triangles, argBuffer);
+        m_mesh = new Mesh();
+
+        if ( NUM_TRIS * 3 > 64000)
+            m_mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+
+        var verts = new List<Vector3>();
+
+        for (int i = 0; i < NUM_TRIS * 3; i++)
+            verts.Add(Vector3.zero);
+
+        m_mesh.SetVertices(verts);
+        var indices = new int[NUM_TRIS * 3];
+        for (int i = 0; i < indices.Length; i++)
+            indices[i] = i;
+
+        m_mesh.SetIndices(indices, MeshTopology.Triangles, 0);
+        m_mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 2);
     }
 
     private void OnDestroy()
@@ -83,16 +103,34 @@ public class MarchingCubes : MonoBehaviour
         Gizmos.DrawWireCube(transform.position, new Vector3(1, 1, 1));
     }
 
-
     [ContextMenu("printmesh")]
     public void PrintMesh()
     {
-        Debug.Log(ObjExporterScript.MeshToString (ExportMesh()));
-
+        Debug.Log(ObjExporterScript.MeshToString(ExportMesh()));
     }
 
+    void Update()
+    {
+        surfaceMat.SetInt("numTris", trisToDraw);
+    }
+
+    // instanced way
+    // void Update()
+    // {
+    //     int numMeshes = trisToDraw / NUM_TRIS + 1;
+        
+    //     Matrix4x4[] matrices = new Matrix4x4[numMeshes];
+
+    //     for ( int i = 0; i < matrices.Length; i++)
+    //     {
+    //         matrices[i] = transform.localToWorldMatrix;
+    //     }
+    //     MaterialPropertyBlock props = new MaterialPropertyBlock();
+    //     Graphics.DrawMeshInstanced(m_mesh, 0, surfaceMat, matrices, matrices.Length, null, UnityEngine.Rendering.ShadowCastingMode.On , true);
+    // }
+
     public Mesh ExportMesh()
-    {   
+    {
 
         int[] args = new int[] { 0, 1, 0, 0 };
         argBuffer.SetData(args);
@@ -110,29 +148,33 @@ public class MarchingCubes : MonoBehaviour
 
         appendVertexBuffer.GetData(dataCPU);
         Mesh outmesh = new Mesh();
-        outmesh.faces = new int[numVerts];
-        outmesh.verts = new Vector3[numVerts];
+        outmesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        var indices = new int[numVerts];
+        var verts = new List<Vector3>();
 
-        for ( int i = 0; i < numVerts; i ++)
+        for (int i = 0; i < numVerts; i++)
         {
-            outmesh.faces[i] = i;
+            indices[i] = i;
         }
-        
-        int vertIndex = 0;
 
-        for ( int i = 0; i < numTris; i ++)
+        for (int i = 0; i < numTris; i++)
         {
             int addr = i * 18;
 
-            outmesh.verts[vertIndex++] = new Vector3(dataCPU[addr++], dataCPU[addr++], dataCPU[addr++]);
-            Vector3 n0 = new Vector3(dataCPU[addr++], dataCPU[addr++], dataCPU[addr++]);
-            
-            outmesh.verts[vertIndex++] = new Vector3(dataCPU[addr++], dataCPU[addr++], dataCPU[addr++]);
-            Vector3 n1 = new Vector3(dataCPU[addr++], dataCPU[addr++], dataCPU[addr++]);
-            
-            outmesh.verts[vertIndex++] = new Vector3(dataCPU[addr++], dataCPU[addr++], dataCPU[addr++]);
-            Vector3 n2 = new Vector3(dataCPU[addr++], dataCPU[addr++], dataCPU[addr++]);
+            verts.Add(new Vector3(dataCPU[addr++], dataCPU[addr++], dataCPU[addr++]));
+            addr += 3; // skip normal
+
+            verts.Add(new Vector3(dataCPU[addr++], dataCPU[addr++], dataCPU[addr++]));
+            addr += 3; // skip normal
+
+            verts.Add(new Vector3(dataCPU[addr++], dataCPU[addr++], dataCPU[addr++]));
+            addr += 3; // skip normal
         }
+
+        outmesh.SetVertices(verts);
+        outmesh.SetIndices(indices, MeshTopology.Triangles, 0);
+
+        // MeshUtility.Optimize(outmesh);
 
         return outmesh;
     }
